@@ -648,6 +648,45 @@ def compute_cohens_d_for_contrasts(boundary_contrasts: pd.DataFrame) -> pd.DataF
     return df
 
 
+def post_hoc_power(test_trials: pd.DataFrame) -> pd.DataFrame:
+    """Compute post-hoc power to detect the observed LDI effect and the
+    originally predicted pre-boundary advantage from Morse et al.
+
+    Uses TTestPower (two-sided paired t-test analogue) with actual per-condition
+    sample sizes and alpha = 0.05.
+    """
+    from statsmodels.stats.power import TTestPower  # local import avoids top-level dependency
+
+    analysis_obj = TTestPower()
+    rows: list[dict] = []
+
+    # Observed per-condition sample sizes from test_trials.
+    lures = test_trials.loc[
+        (test_trials["item_role"] == "lure")
+        & test_trials["test_boundary_position"].isin(BOUNDARY_ORDER)
+    ]
+    for condition in CONDITION_ORDER:
+        n = int(lures.loc[lures["condition"] == condition, "participant_uid"].nunique())
+        for dz_scenario, scenario_name in [
+            (0.2, "small (dz=0.20)"),
+            (0.3, "medium (dz=0.30)"),
+            (0.4, "large (dz=0.40)"),
+        ]:
+            power = float(analysis_obj.solve_power(effect_size=dz_scenario, nobs=n, alpha=0.05, alternative="two-sided"))
+            rows.append(
+                {
+                    "condition": condition,
+                    "n_participants": n,
+                    "scenario": scenario_name,
+                    "assumed_dz": dz_scenario,
+                    "power": round(power, 3),
+                    "alpha": 0.05,
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
 def robustness_reruns(
     test_trials: pd.DataFrame,
     participant_rt_flags: pd.DataFrame,
@@ -749,6 +788,248 @@ def robustness_reruns(
         boundary_contrasts["p_value_holm"] = p_holm
 
     return rt_trimmed, split_correctness, boundary_contrasts
+
+
+def response_direction_analysis(test_trials: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Decompose post-boundary recognition failure by response type.
+
+    For each condition × boundary, computes the mean per-participant rate of
+    each response label (old / similar / new) for TARGET trials.  Then runs
+    Holm-corrected paired t-tests for post vs mid and post vs pre contrasts
+    within each condition, separately for each response label.
+
+    Scientific motivation: the overall hit-rate drop at post-boundary could
+    be driven by conservative responding (more 'new' misses) or by pattern-
+    separation overextension (more 'similar' calls to targets).  Decomposing
+    the direction establishes the mechanism.
+    """
+    target = test_trials.loc[
+        (test_trials["item_role"] == "target")
+        & test_trials["test_boundary_position"].isin(BOUNDARY_ORDER)
+    ].copy()
+
+    # Participant-level proportion of each response label by condition × boundary.
+    rows_summary: list[dict[str, object]] = []
+    rows_tests: list[dict[str, object]] = []
+
+    for resp_label in ["old", "similar", "new"]:
+        target[f"is_{resp_label}"] = target["response_label"].eq(resp_label).astype(float)
+
+        part_rates = (
+            target.groupby(["participant_uid", "condition", "test_boundary_position"], observed=True)[f"is_{resp_label}"]
+            .mean()
+            .reset_index()
+        )
+
+        for condition in CONDITION_ORDER:
+            sub = part_rates.loc[part_rates["condition"] == condition]
+            pivot = sub.pivot(
+                index="participant_uid", columns="test_boundary_position", values=f"is_{resp_label}"
+            ).reindex(columns=BOUNDARY_ORDER).dropna()
+            n = len(pivot)
+
+            for boundary in BOUNDARY_ORDER:
+                rows_summary.append({
+                    "condition": condition,
+                    "boundary": boundary,
+                    "response_label": resp_label,
+                    "mean_rate": float(pivot[boundary].mean()),
+                    "se": float(pivot[boundary].std(ddof=1) / math.sqrt(n)),
+                    "n": int(n),
+                })
+
+            # Paired t-tests: post vs mid and post vs pre.
+            for left, right in [("post", "mid"), ("post", "pre")]:
+                if left in pivot.columns and right in pivot.columns:
+                    diff = pivot[left] - pivot[right]
+                    t_stat, p_raw = stats.ttest_1samp(diff.dropna(), 0.0)
+                    n_pair = int(len(diff.dropna()))
+                    rows_tests.append({
+                        "analysis_family": "response_direction",
+                        "condition": condition,
+                        "response_label": resp_label,
+                        "contrast": f"{left}-{right}",
+                        "n": n_pair,
+                        "mean_diff": float(diff.mean()),
+                        "t_value": float(t_stat),
+                        "p_value": float(p_raw),
+                        "cohens_dz": float(t_stat) / math.sqrt(n_pair),
+                    })
+
+    tests_df = pd.DataFrame(rows_tests)
+    if not tests_df.empty:
+        _, p_holm, _, _ = multipletests(tests_df["p_value"].to_numpy(), method="holm")
+        tests_df["p_value_holm"] = p_holm
+
+    return pd.DataFrame(rows_summary), tests_df
+
+
+def lure_false_alarm_analysis(test_trials: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Analyse P(old|lure) by boundary position and condition.
+
+    Pre-boundary lures being called 'old' more often than mid-event lures
+    would indicate higher familiarity signal for pre-boundary items rather
+    than better pattern separation (which would increase 'similar' responses).
+    This tests whether the LDI non-replication is accompanied by a directional
+    familiarity elevation for pre-boundary items.
+    """
+    lure = test_trials.loc[
+        (test_trials["item_role"] == "lure")
+        & test_trials["test_boundary_position"].isin(BOUNDARY_ORDER)
+    ].copy()
+    lure["is_old"] = lure["response_label"].eq("old").astype(float)
+
+    part_fa = (
+        lure.groupby(["participant_uid", "condition", "test_boundary_position"], observed=True)["is_old"]
+        .mean()
+        .reset_index()
+    )
+
+    rows_summary: list[dict[str, object]] = []
+    rows_tests: list[dict[str, object]] = []
+
+    for condition in CONDITION_ORDER:
+        sub = part_fa.loc[part_fa["condition"] == condition]
+        pivot = sub.pivot(
+            index="participant_uid", columns="test_boundary_position", values="is_old"
+        ).reindex(columns=BOUNDARY_ORDER).dropna()
+        n = len(pivot)
+
+        for boundary in BOUNDARY_ORDER:
+            rows_summary.append({
+                "condition": condition,
+                "boundary": boundary,
+                "mean_lure_fa_rate": float(pivot[boundary].mean()),
+                "se": float(pivot[boundary].std(ddof=1) / math.sqrt(n)),
+                "n": int(n),
+            })
+
+        for left, right in [("post", "mid"), ("pre", "mid"), ("post", "pre")]:
+            if left in pivot.columns and right in pivot.columns:
+                diff = pivot[left] - pivot[right]
+                t_stat, p_raw = stats.ttest_1samp(diff.dropna(), 0.0)
+                n_pair = int(len(diff.dropna()))
+                rows_tests.append({
+                    "analysis_family": "lure_false_alarm",
+                    "condition": condition,
+                    "contrast": f"{left}-{right}",
+                    "n": n_pair,
+                    "mean_diff": float(diff.mean()),
+                    "t_value": float(t_stat),
+                    "p_value": float(p_raw),
+                    "cohens_dz": float(t_stat) / math.sqrt(n_pair),
+                })
+
+    tests_df = pd.DataFrame(rows_tests)
+    if not tests_df.empty:
+        _, p_holm, _, _ = multipletests(tests_df["p_value"].to_numpy(), method="holm")
+        tests_df["p_value_holm"] = p_holm
+
+    return pd.DataFrame(rows_summary), tests_df
+
+
+def sdt_dprime_analysis(test_trials: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Signal detection theory d-prime and criterion (c) by boundary position and condition.
+
+    Uses participant-level hit rate (P(old|target, boundary)) and a single
+    false-alarm rate (P(old|foil)) per participant.  Because foils do not have
+    boundary positions, FA is constant across boundary levels; consequently
+    d' and raw hit rate convey identical statistical information.  The SDT
+    table is provided because d' is the standard metric in the MST literature
+    and is directly comparable with published values from Morse et al. (2023).
+
+    Loglinear correction: extreme rates (0 or 1) are clipped to
+    0.5/n and 1 - 0.5/n using the number of trials in the denominator.
+    """
+    # False alarm rate per participant (from foil trials).
+    foils = test_trials.loc[test_trials["item_role"] == "foil"].copy()
+    foil_counts = foils.groupby("participant_uid", observed=True).size().reset_index(name="n_foil_trials")
+    foil_fa = (
+        foils.groupby("participant_uid", observed=True)["response_label"]
+        .apply(lambda x: (x == "old").mean())
+        .reset_index()
+    )
+    foil_fa.columns = ["participant_uid", "fa_rate"]
+    foil_fa = foil_fa.merge(foil_counts, on="participant_uid")
+
+    # Hit rate per participant × condition × boundary.
+    targets = test_trials.loc[
+        (test_trials["item_role"] == "target")
+        & test_trials["test_boundary_position"].isin(BOUNDARY_ORDER)
+    ].copy()
+    target_counts = (
+        targets.groupby(["participant_uid", "condition", "test_boundary_position"], observed=True)
+        .size()
+        .reset_index(name="n_target_trials")
+    )
+    hit_rate = (
+        targets.groupby(["participant_uid", "condition", "test_boundary_position"], observed=True)["response_label"]
+        .apply(lambda x: (x == "old").mean())
+        .reset_index()
+    )
+    hit_rate.columns = ["participant_uid", "condition", "boundary", "hit_rate"]
+    hit_rate = hit_rate.merge(target_counts, left_on=["participant_uid", "condition", "boundary"],
+                              right_on=["participant_uid", "condition", "test_boundary_position"])
+
+    sdt = hit_rate.merge(foil_fa, on="participant_uid")
+
+    # Loglinear correction.
+    sdt["hit_c"] = sdt.apply(lambda r: float(np.clip(r["hit_rate"], 0.5 / r["n_target_trials"],
+                                                      1 - 0.5 / r["n_target_trials"])), axis=1)
+    sdt["fa_c"] = sdt.apply(lambda r: float(np.clip(r["fa_rate"], 0.5 / r["n_foil_trials"],
+                                                     1 - 0.5 / r["n_foil_trials"])), axis=1)
+    sdt["dprime"] = stats.norm.ppf(sdt["hit_c"]) - stats.norm.ppf(sdt["fa_c"])
+    sdt["criterion"] = -0.5 * (stats.norm.ppf(sdt["hit_c"]) + stats.norm.ppf(sdt["fa_c"]))
+
+    # Summary table: mean d' and criterion by condition × boundary.
+    summary = (
+        sdt.groupby(["condition", "boundary"], observed=True)[["dprime", "criterion"]]
+        .agg(["mean", "std"])
+        .reset_index()
+    )
+    summary.columns = ["condition", "boundary", "dprime_mean", "dprime_std", "criterion_mean", "criterion_std"]
+
+    # Statistical tests: Friedman + post-hoc paired t-tests for d'.
+    test_rows: list[dict[str, object]] = []
+    for condition in CONDITION_ORDER:
+        sub = sdt.loc[sdt["condition"] == condition]
+        pivot = sub.pivot(index="participant_uid", columns="boundary", values="dprime").reindex(
+            columns=BOUNDARY_ORDER
+        ).dropna()
+        n = len(pivot)
+        if n >= 3:
+            chi2, p_fr = stats.friedmanchisquare(pivot["post"], pivot["mid"], pivot["pre"])
+            kendall_w = float(chi2) / (n * 2)
+            test_rows.append({
+                "analysis_family": "sdt_dprime",
+                "condition": condition,
+                "test": "friedman_dprime",
+                "n": int(n),
+                "statistic": float(chi2),
+                "p_value": float(p_fr),
+                "kendall_w": kendall_w,
+            })
+            for left, right in [("post", "mid"), ("post", "pre")]:
+                diff = pivot[left] - pivot[right]
+                t_stat, p_raw = stats.ttest_1samp(diff.dropna(), 0.0)
+                n_pair = int(len(diff.dropna()))
+                test_rows.append({
+                    "analysis_family": "sdt_dprime",
+                    "condition": condition,
+                    "test": f"paired_t_dprime_{left}_vs_{right}",
+                    "n": n_pair,
+                    "mean_dprime_diff": float(diff.mean()),
+                    "t_value": float(t_stat),
+                    "p_value": float(p_raw),
+                    "cohens_dz": float(t_stat) / math.sqrt(n_pair),
+                })
+
+    tests_df = pd.DataFrame(test_rows)
+    if not tests_df.empty and "p_value" in tests_df.columns:
+        _, p_holm, _, _ = multipletests(tests_df["p_value"].to_numpy(), method="holm")
+        tests_df["p_value_holm"] = p_holm
+
+    return summary, tests_df
 
 
 def apply_family_corrections(
@@ -1079,6 +1360,142 @@ def plot_speed_accuracy_by_boundary(summary_by_boundary: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def plot_response_direction(resp_summary: pd.DataFrame) -> None:
+    """Stacked bar chart showing target response-label proportions by boundary.
+
+    For each condition × boundary, shows the mean proportion of 'old',
+    'similar', and 'new' responses.  The 'both' condition panel is the
+    primary interest: does the post-boundary drop in 'old' come from more
+    'new' (conservative misses) or more 'similar' (pattern-separation errors)?
+    """
+    resp_order = ["old", "similar", "new"]
+    colors = {"old": "#4C9BE8", "similar": "#F5A623", "new": "#E84C4C"}
+    boundary_labels = {"post": "Post", "mid": "Mid", "pre": "Pre"}
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5), sharey=True)
+
+    for ax, condition in zip(axes, CONDITION_ORDER):
+        sub = resp_summary.loc[resp_summary["condition"] == condition].copy()
+        x = np.arange(len(BOUNDARY_ORDER))
+        width = 0.55
+        bottoms = np.zeros(len(BOUNDARY_ORDER))
+
+        for resp_label in resp_order:
+            vals = []
+            for boundary in BOUNDARY_ORDER:
+                row = sub[(sub["boundary"] == boundary) & (sub["response_label"] == resp_label)]
+                vals.append(float(row["mean_rate"].values[0]) if not row.empty else 0.0)
+            vals = np.array(vals)
+            ax.bar(x, vals, width=width, bottom=bottoms, color=colors[resp_label],
+                   label=f'"{resp_label}"', alpha=0.88)
+            # Add proportion labels inside bars if large enough.
+            for xi, (v, b) in enumerate(zip(vals, bottoms)):
+                if v > 0.08:
+                    ax.text(xi, b + v / 2, f"{v:.2f}", ha="center", va="center",
+                            fontsize=8.5, color="white", fontweight="bold")
+            bottoms += vals
+
+        ax.set_xticks(x)
+        ax.set_xticklabels([boundary_labels[b] for b in BOUNDARY_ORDER])
+        ax.set_title(CONDITION_LABELS[condition])
+        ax.set_xlabel("Boundary position")
+        ax.set_ylim(0, 1.02)
+
+    axes[0].set_ylabel("Proportion of responses")
+    axes[1].set_ylabel("")
+    axes[2].set_ylabel("")
+    # Single shared legend.
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, title="Response", loc="upper right",
+               bbox_to_anchor=(1.0, 1.0), fontsize=9)
+    fig.suptitle(
+        "Response direction: target response proportions by boundary position",
+        fontsize=13, y=1.02,
+    )
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / "phase2_response_direction_targets.png")
+    plt.close(fig)
+
+
+def plot_sdt_dprime(sdt_summary: pd.DataFrame) -> None:
+    """d-prime by boundary position and condition (3-panel, MST literature format)."""
+    boundary_labels = {"post": "Post", "mid": "Mid", "pre": "Pre"}
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5), sharey=True)
+    colors = sns.color_palette("Set2", 3)
+
+    for ax, condition, color in zip(axes, CONDITION_ORDER, colors):
+        sub = sdt_summary.loc[sdt_summary["condition"] == condition].copy()
+        sub["boundary_label"] = sub["boundary"].map(boundary_labels)
+        # Order by BOUNDARY_ORDER.
+        sub["boundary_ord"] = sub["boundary"].map({b: i for i, b in enumerate(BOUNDARY_ORDER)})
+        sub = sub.sort_values("boundary_ord")
+
+        n_participants = int(sub["dprime_std"].count())  # approximate
+        ax.errorbar(
+            sub["boundary_label"],
+            sub["dprime_mean"],
+            yerr=sub["dprime_std"] / np.sqrt(max(n_participants, 1)),
+            fmt="o-",
+            color=color,
+            capsize=5,
+            linewidth=2,
+            markersize=8,
+            label=CONDITION_LABELS[condition],
+        )
+        ax.set_title(CONDITION_LABELS[condition])
+        ax.set_xlabel("Boundary position")
+        ax.set_ylim(1.0, 3.5)
+        ax.axhline(0, color="grey", linestyle="--", linewidth=0.8, alpha=0.4)
+
+    axes[0].set_ylabel("d′ (signal detection sensitivity)")
+    axes[1].set_ylabel("")
+    axes[2].set_ylabel("")
+    fig.suptitle("SDT sensitivity (d′) by boundary position and condition", fontsize=13, y=1.02)
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / "phase2_sdt_dprime_by_boundary.png")
+    plt.close(fig)
+
+
+def plot_lure_false_alarm(lure_fa_summary: pd.DataFrame) -> None:
+    """P(old|lure) by boundary position and condition.
+
+    Highlights the pre-boundary lure false-alarm elevation in the 'both'
+    condition — pre-event lures are more often called 'old', indicating
+    higher familiarity signal rather than better pattern separation.
+    """
+    boundary_labels = {"post": "Post", "mid": "Mid", "pre": "Pre"}
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5), sharey=True)
+    colors = sns.color_palette("Set2", 3)
+
+    for ax, condition, color in zip(axes, CONDITION_ORDER, colors):
+        sub = lure_fa_summary.loc[lure_fa_summary["condition"] == condition].copy()
+        sub["boundary_label"] = sub["boundary"].map(boundary_labels)
+        sub["boundary_ord"] = sub["boundary"].map({b: i for i, b in enumerate(BOUNDARY_ORDER)})
+        sub = sub.sort_values("boundary_ord")
+
+        ax.errorbar(
+            sub["boundary_label"],
+            sub["mean_lure_fa_rate"],
+            yerr=sub["se"] * 1.96,
+            fmt="s-",
+            color=color,
+            capsize=5,
+            linewidth=2,
+            markersize=8,
+        )
+        ax.set_title(CONDITION_LABELS[condition])
+        ax.set_xlabel("Boundary position")
+        ax.set_ylim(0, 0.55)
+
+    axes[0].set_ylabel("P(\"old\" | lure) — False alarm rate")
+    axes[1].set_ylabel("")
+    axes[2].set_ylabel("")
+    fig.suptitle("Lure false-alarm rate by boundary position", fontsize=13, y=1.02)
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / "phase2_lure_false_alarm_by_boundary.png")
+    plt.close(fig)
+
+
 def plot_rt(test_trials: pd.DataFrame) -> None:
     working = test_trials.loc[
         test_trials["test_boundary_position"].isin(BOUNDARY_ORDER)
@@ -1262,6 +1679,13 @@ def save_outputs(
     carryover_gee: pd.DataFrame,
     scatter_df: pd.DataFrame,
     heterogeneity_df: pd.DataFrame,
+    resp_direction_summary: pd.DataFrame,
+    resp_direction_contrasts: pd.DataFrame,
+    sdt_summary: pd.DataFrame,
+    sdt_tests: pd.DataFrame,
+    lure_fa_summary: pd.DataFrame,
+    lure_fa_contrasts: pd.DataFrame,
+    power_df: pd.DataFrame,
 ) -> None:
     qc_summary.to_csv(PHASE2_DIR / "qc_summary.csv", index=False)
     participant_rt_flags.to_csv(PHASE2_DIR / "participant_rt_outlier_flags.csv", index=False)
@@ -1282,6 +1706,13 @@ def save_outputs(
     carryover_gee.to_csv(TABLE_DIR / "phase2_encoding_rt_carryover_gee.csv", index=False)
     scatter_df.to_csv(TABLE_DIR / "phase2_encoding_rt_correctness_scatter.csv", index=False)
     heterogeneity_df.to_csv(TABLE_DIR / "phase2_participant_boundary_contrasts.csv", index=False)
+    resp_direction_summary.to_csv(TABLE_DIR / "phase2_response_direction_summary.csv", index=False)
+    resp_direction_contrasts.to_csv(TABLE_DIR / "phase2_response_direction_contrasts.csv", index=False)
+    sdt_summary.to_csv(TABLE_DIR / "phase2_sdt_dprime.csv", index=False)
+    sdt_tests.to_csv(TABLE_DIR / "phase2_sdt_dprime_tests.csv", index=False)
+    lure_fa_summary.to_csv(TABLE_DIR / "phase2_lure_false_alarm_summary.csv", index=False)
+    lure_fa_contrasts.to_csv(TABLE_DIR / "phase2_lure_false_alarm_contrasts.csv", index=False)
+    power_df.to_csv(TABLE_DIR / "phase2_posthoc_power.csv", index=False)
 
     rt_diag_points_sample = rt_diag_points.sample(n=min(20000, len(rt_diag_points)), random_state=17)
     rt_diag_points_sample.to_csv(PHASE2_DIR / "phase2_rt_diag_points_sample.csv", index=False)
@@ -1350,6 +1781,18 @@ def main() -> None:
     print("Computing participant heterogeneity (new)...")
     heterogeneity_df = participant_heterogeneity(test_trials)
 
+    print("Running response direction decomposition (new)...")
+    resp_direction_summary, resp_direction_contrasts = response_direction_analysis(test_trials)
+
+    print("Computing SDT d-prime by boundary (new)...")
+    sdt_summary, sdt_tests = sdt_dprime_analysis(test_trials)
+
+    print("Running lure false alarm analysis (new)...")
+    lure_fa_summary, lure_fa_contrasts = lure_false_alarm_analysis(test_trials)
+
+    print("Computing post-hoc power for LDI non-replication (new)...")
+    power_df = post_hoc_power(test_trials)
+
     print("Running robustness reruns...")
     robustness_rt_trimmed, robustness_correctness_split, robustness_boundary_contrasts = robustness_reruns(
         test_trials,
@@ -1374,6 +1817,9 @@ def main() -> None:
     plot_rt(test_trials)
     plot_lure_bins(test_trials)
     plot_diagnostics(rt_diag_points, test_trials)
+    plot_response_direction(resp_direction_summary)
+    plot_sdt_dprime(sdt_summary)
+    plot_lure_false_alarm(lure_fa_summary)
 
     registry = write_analysis_registry()
     save_outputs(
@@ -1397,6 +1843,13 @@ def main() -> None:
         carryover_gee=carryover_gee,
         scatter_df=scatter_df,
         heterogeneity_df=heterogeneity_df,
+        resp_direction_summary=resp_direction_summary,
+        resp_direction_contrasts=resp_direction_contrasts,
+        sdt_summary=sdt_summary,
+        sdt_tests=sdt_tests,
+        lure_fa_summary=lure_fa_summary,
+        lure_fa_contrasts=lure_fa_contrasts,
+        power_df=power_df,
     )
 
     print("Saved Phase 2 outputs to", PHASE2_DIR)

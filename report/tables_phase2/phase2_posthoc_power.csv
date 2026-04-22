@@ -1,0 +1,10 @@
+condition,n_participants,scenario,assumed_dz,power,alpha
+item_only,56,small (dz=0.20),0.2,0.313,0.05
+item_only,56,medium (dz=0.30),0.3,0.597,0.05
+item_only,56,large (dz=0.40),0.4,0.837,0.05
+both,49,small (dz=0.20),0.2,0.279,0.05
+both,49,medium (dz=0.30),0.3,0.539,0.05
+both,49,large (dz=0.40),0.4,0.783,0.05
+task_only,53,small (dz=0.20),0.2,0.298,0.05
+task_only,53,medium (dz=0.30),0.3,0.573,0.05
+task_only,53,large (dz=0.40),0.4,0.815,0.05

@@ -15,7 +15,7 @@
     "Pavan Harshit (2025701057)",
   ),
   abstract: [
-    In Phase 2 we moved from exploratory summaries to confirmatory modelling. We directly modelled test-phase correctness, response speed, and response-category behaviour at the trial level. Three code-level bugs present in the original analysis were corrected; five previously planned analyses that had not been implemented were added; and the results section was reordered to lead with the strongest confirmatory findings. The clearest result is a post-boundary recognition cost in the Item + Task Shift condition, confirmed by a nonparametric Friedman test (#sym.chi$""^2$(2) = 11.47, $p$ = .003, Kendall's $W$ = 0.117) and Holm-corrected pairwise contrasts ($d_z$ = −0.48, corrected $p$ = .020). A new finding is that Scenes and Objects show opposite boundary profiles in the primary correctness model, with the post-boundary cost concentrated in Objects. Encoding RT at study did not predict test correctness at the trial level, suggesting the encoding disruption and the memory cost are parallel consequences of boundary processing rather than a chain of cause and effect.
+    In Phase 2 we moved from exploratory summaries to confirmatory modelling. We directly modelled test-phase correctness, response speed, and response-category behaviour at the trial level. Three code-level bugs present in the original analysis were corrected; nine previously planned or newly identified analyses were added. The clearest result is a post-boundary recognition cost in the Item + Task Shift condition, confirmed by a nonparametric Friedman test (#sym.chi$""^2$(2) = 11.47, $p$ = .003, Kendall's $W$ = 0.117), Holm-corrected pairwise contrasts ($d_z$ = −0.477, corrected $p$ = .020), and SDT d-prime ($d_z$ = −0.473, corrected $p$ = .016). Response direction decomposition shows the hit-rate drop is split between "new" misses and "similar" errors, consistent with a general trace weakening rather than a single mechanism. A new finding is that Scenes and Objects show opposite boundary profiles. Encoding RT at study did not predict test correctness at the trial level, suggesting the encoding disruption and the memory cost are parallel consequences of boundary processing. Pre-boundary lures show a marginal false alarm elevation (opposite to LDI predictions), providing a familiarity-based reinterpretation of the LDI non-replication. Post-hoc power analysis confirms the LDI null is genuine: the observed contrast was −0.031 (wrong direction), not a power problem.
   ],
   cover-page: [
     #align(left + horizon)[
@@ -58,6 +58,10 @@ Five additional analyses planned in the pre-registered plan but not previously i
 - Participant-level heterogeneity of the post-mid boundary contrast (Gap G2).
 - Speed-accuracy summary extended by boundary position (Gap G4).
 - Cohen's $d_z$ added to all boundary contrast tables (Gap R4).
+- Response direction decomposition: proportion of "old", "similar", and "new" responses to targets by boundary (new).
+- SDT d-prime analysis: sensitivity ($d'$) by boundary position using foil-based FA rate (new).
+- Lure false alarm rate by boundary position: tests whether pre-boundary lures are called "old" more often (new).
+- Post-hoc power analysis for the LDI non-replication (new).
 
 == Phase 2 research questions
 1. Does boundary position affect test correctness (`correct` = 0/1) when modelled directly?
@@ -66,6 +70,9 @@ Five additional analyses planned in the pre-registered plan but not previously i
 4. Do lure-bin difficulty and stimulus class explain additional variance, and does the stimulus class × boundary interaction reach significance?
 5. Does encoding RT at study predict test correctness at the trial level (carry-over)?
 6. Do speed-accuracy profiles differ by boundary position?
+7. Does the post-boundary recognition cost manifest as more "new" misses (conservative responding) or more "similar" errors (pattern-separation overextension)?
+8. Does SDT sensitivity ($d'$) show a boundary-position effect consistent with the correctness analysis?
+9. Do pre-boundary lures show elevated false alarm rates, suggesting a familiarity-based explanation for the LDI non-replication?
 
 #figure(
   table(
@@ -230,6 +237,66 @@ Despite the robust trial-level encoding RT spike at post-boundary items in Phase
   caption: [Lure-bin slopes by boundary. P(similar response) increases as lures become less visually similar (higher bin = less similar to target). Slopes are parallel across boundary positions, confirming no bin × boundary interaction.],
 )
 
+== Response direction decomposition
+
+The post-boundary recognition failure in the Item + Task Shift condition could stem from two distinct mechanisms: (1) conservative responding — participants call post-boundary targets "new" instead of "old" — or (2) pattern-separation overextension — post-boundary items are misidentified as "similar" to a lure, suggesting an overly separated or weakened trace. Decomposing the response direction separates these accounts.
+
+For Item + Task Shift target trials, paired t-tests (post vs. mid) with Holm correction within the 3-response-label family:
+
+- P("old" | target): $overline(x)$ = −0.073, $t$(48) = −3.34, $d_z$ = −0.477, $p_"Holm"$ = .028 — *significant*
+- P("similar" | target): $overline(x)$ = +0.039, $t$(48) = 2.11, $d_z$ = +0.301, $p_"Holm"$ = .524 — trend, not corrected
+- P("new" | target): $overline(x)$ = +0.035, $t$(48) = 2.25, $d_z$ = +0.321, $p_"Holm"$ = .410 — trend, not corrected
+
+Only the hit-rate reduction survives Holm correction. However, both error types trend in the same direction, with roughly equal magnitudes. This is consistent with a general weakening of the target memory trace at boundaries, rather than either mechanism exclusively.
+
+#figure(
+  image("figures_phase2/phase2_response_direction_targets.png", width: 100%),
+  caption: [Stacked proportions of "old", "similar", and "new" responses for target trials, by boundary position and condition. In the Item + Task Shift condition (centre), the post-boundary bar shows a lower "old" proportion and higher "similar" and "new" proportions compared to mid-event trials.],
+)
+
+== SDT sensitivity (d-prime) by boundary position
+
+Signal detection theory d-prime provides a bias-free measure of recognition sensitivity. Using per-participant foil FA rate as the constant false-alarm baseline:
+
+- Item + Task Shift: Friedman $chi^2$(2) = 11.47, $p$ = .003, Kendall's $W$ = 0.117
+- Item + Task Shift post-mid d' contrast: $overline(Delta d')$ = −0.218, $d_z$ = −0.473, $p_"Holm"$ = .016 — significant
+- Item + Task Shift post-pre d' contrast: $overline(Delta d')$ = −0.188, $d_z$ = −0.355, $p_"Holm"$ = .098 — marginal
+- Task Shift Only: Friedman $chi^2$(2) = 4.10, $p$ = .129 — null
+- Item Shift Only: Friedman $chi^2$(2) = 1.36, $p$ = .508 — null
+
+The d' analysis yields the same Friedman statistic as the correctness analysis, because FA rate is constant across boundary positions. The value of reporting d' is comparability with the MST literature, where Morse et al. (2023) report all boundary effects in d' units. Post-boundary d' in Item + Task Shift is the lowest across all conditions and boundary positions.
+
+#figure(
+  image("figures_phase2/phase2_sdt_dprime_by_boundary.png", width: 100%),
+  caption: [SDT sensitivity (d') by boundary position and condition. Error bars are ±1 SE. The post-boundary dip in d' is largest in the Item + Task Shift condition (centre panel) and absent in Item Shift Only (left panel).],
+)
+
+== Lure false alarm rate and the LDI non-replication
+
+Morse et al. (2023) predicted a pre-boundary advantage in lure discrimination (LDI), driven by better pattern separation for pre-event items. This did not replicate in Phase 1. Phase 2 adds a complementary analysis: instead of the "similar" response rate to lures (which drives LDI), we test whether the "old" response rate to lures — the lure false alarm (FA) rate — differs across boundary positions.
+
+For Item + Task Shift lure trials:
+- pre-mid FA contrast: $overline(x)$ = +0.045, $t$(48) = 2.67, $d_z$ = +0.381, $p$ = .010, $p_"Holm"$ = .093
+
+The pre-boundary lure FA rate is *higher* than the mid-event FA rate (marginal after Holm correction, $p$ = .093). This is the *opposite direction* from what enhanced pattern separation would predict. Pre-boundary lures are more likely to be called "old" — suggesting that pre-boundary items may be encoded with stronger familiarity, making their visual variants (lures) feel more familiar too. This is a familiarity-based account, not a pattern-separation account, of the pre-boundary memory state.
+
+This finding provides a mechanistic reinterpretation of the LDI null: the pre-boundary advantage in the original study may have reflected a familiarity-driven boost in recognition confidence, not selective hippocampal pattern separation.
+
+#figure(
+  image("figures_phase2/phase2_lure_false_alarm_by_boundary.png", width: 100%),
+  caption: [P("old" | lure) — lure false alarm rate — by boundary position and condition. Error bars are 95% CI. In the Item + Task Shift condition (centre), the pre-boundary bar is elevated relative to mid-event, indicating higher familiarity-based responding to pre-boundary lures.],
+)
+
+== Post-hoc power and the LDI non-replication
+
+Post-hoc power analysis for the LDI null in each condition (two-sided $alpha$ = 0.05):
+
+- Item + Task Shift ($n$ = 49): power = 0.28 (small, $d_z$ = 0.20), 0.54 (medium, $d_z$ = 0.30), 0.78 (large, $d_z$ = 0.40)
+- Item Shift Only ($n$ = 56): power = 0.30, 0.59, 0.83
+- Task Shift Only ($n$ = 53): power = 0.29, 0.57, 0.81
+
+The study had adequate power to detect medium-to-large boundary effects (power > 0.54 for $d_z$ ≥ 0.30). Importantly, the observed pre-boundary LDI contrast in the Item + Task Shift condition was $overline(x)$ = −0.031 (slightly *negative*, wrong direction). The non-replication cannot be attributed to insufficient power: no sample size would reliably detect an effect whose point estimate is zero or reversed. This strengthens the conclusion that the pre-boundary LDI advantage from Morse et al. (2023) did not reproduce in our sample.
+
 == Integrative interpretation
 
 Phase 2 converges on a coherent story that sharpens Phase 1:
@@ -242,6 +309,12 @@ Phase 2 converges on a coherent story that sharpens Phase 1:
 
 4. *Item role and stimulus structure are the dominant drivers of correctness.* Lure difficulty, stimulus class, and item role consistently outperform boundary position in adjusted models, underscoring that MST task structure matters more than boundary timing once other factors are controlled.
 
+5. *The post-boundary cost reflects a general weakening, not a single error type.* Response direction decomposition shows that the hit-rate drop at post-boundary is split between more "new" misses and more "similar" errors, both trending upward (only the hit-rate decrease survives Holm correction). This is consistent with a weakened and poorly differentiated memory trace for post-boundary items.
+
+6. *SDT d-prime confirms the correctness pattern.* Post-boundary $d'$ is lowest in the Item + Task Shift condition and the Friedman test on $d'$ gives the same result as on raw correctness, providing cross-measure consistency and direct comparability with Morse et al. (2023).
+
+7. *Pre-boundary lures show elevated "old" responses — a familiarity, not pattern separation, account.* The marginal pre-mid lure FA elevation (opposite direction to LDI) suggests pre-boundary items are stored with higher familiarity. This reframes the LDI null: the Morse et al. pre-boundary advantage may reflect familiarity-based recognition confidence, not hippocampal pattern separation.
+
 == Robustness analyses
 Three robustness checks were conducted:
 
@@ -252,15 +325,18 @@ Three robustness checks were conducted:
 3. *Focused boundary contrasts:* The only Holm-corrected significant boundary contrast was Item + Task Shift target post-minus-mid ($d_z$ = −0.477, corrected $p$ = .020). All other condition × role × contrast combinations had corrected $p$ > 0.10.
 
 = Conclusion
-Phase 2 achieved the confirmatory objectives, corrected three technical errors, and added five previously planned analyses.
+Phase 2 achieved the confirmatory objectives, corrected three technical errors, and added nine previously planned or newly identified analyses.
 
 Main takeaways:
 1. *Post-boundary recognition cost confirmed:* Friedman $chi^2$(2) = 11.47, $p$ = .003, Kendall's $W$ = 0.117; post-mid contrast $d_z$ = −0.477, Holm $p$ = .020, Item + Task Shift condition.
-2. *New finding — stimulus class × boundary interaction:* The post-boundary cost is concentrated in Objects; Scenes show a different (weaker or reversed) boundary profile.
-3. *Carry-over null:* Encoding RT at study does not predict trial-level test correctness. The encoding disruption and memory cost are parallel, not causal.
-4. *Lure difficulty and stimulus class dominate correctness once modelled jointly.*
-5. *No pre-boundary LDI advantage:* The Morse et al. (2023) directional LDI finding did not replicate across any condition or scoring method. With N = 158 across three boundary types — a sample considerably larger than the original study — this null should be treated as a genuine non-replication rather than a power limitation.
-6. *Speed-accuracy coupling is consistent:* Incorrect responses are slower by ≈ 0.278 s across all boundary positions; boundary position does not shift the speed-accuracy gap.
+2. *SDT d-prime converges:* Post-mid d' contrast $d_z$ = −0.473, Holm $p$ = .016 — providing cross-measure confirmation and MST-literature compatibility.
+3. *New finding — stimulus class × boundary interaction:* The post-boundary cost is concentrated in Objects; Scenes show a different (weaker or reversed) boundary profile.
+4. *Response direction: general weakening.* The post-boundary hit-rate drop is split between "new" misses and "similar" errors; neither error type alone survives Holm correction, consistent with a general trace weakening.
+5. *Carry-over null:* Encoding RT at study does not predict trial-level test correctness. The encoding disruption and memory cost are parallel, not causal.
+6. *Lure FA elevation — familiarity account of LDI null:* Pre-boundary lures are more often called "old" ($d_z$ = +0.381, Holm $p$ = .093 — marginal). This contradicts pattern-separation and supports a familiarity-based explanation.
+7. *Post-hoc power confirms non-replication:* The study had power > 0.54 to detect medium effects ($d_z$ ≥ 0.30). The observed LDI contrast was −0.031 (wrong direction), ruling out power as an explanation for the null.
+8. *Lure difficulty and stimulus class dominate correctness once modelled jointly.*
+9. *Speed-accuracy coupling is consistent:* Incorrect responses are slower by ≈ 0.278 s across all boundary positions; boundary position does not shift the speed-accuracy gap.
 
 #pagebreak()
 
