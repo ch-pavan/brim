@@ -15,7 +15,7 @@
     "Pavan Harshit (2025701057)",
   ),
   abstract: [
-    Phase 2 extends Report 1 with a recap of the exploratory Phase 1 pipeline, then confirmatory analyses aligned with course methods. Primary inferential tests used participant-level summaries of test-phase correctness and RT (repeated-measures ANOVA, Friedman, Holm-corrected paired comparisons, chi-square, and lure-bin correlations); auxiliary generalized-estimating-equation models addressed robustness and literature-aligned contrasts. Three code-level bugs in the original modelling pass were corrected; nine planned or newly identified analyses were added. The clearest result is a post-boundary recognition cost in the Item + Task Shift condition, confirmed by a nonparametric Friedman test (#sym.chi$""^2$(2) = 11.47, $p$ = .003, Kendall's $W$ = 0.117), Holm-corrected pairwise contrasts ($d_z$ = −0.477, corrected $p$ = .020), and SDT d-prime ($d_z$ = −0.473, corrected $p$ = .016). Response direction decomposition shows the hit-rate drop is split between "new" misses and "similar" errors, consistent with a general trace weakening. Supplementary models indicate Scenes and Objects can differ in boundary profiles; encoding RT at study did not predict trial-level test accuracy once boundary position was controlled, suggesting parallel rather than mediating effects. Pre-boundary lures show a marginal false-alarm elevation (opposite to simple LDI predictions), supporting a familiarity-based reinterpretation of the LDI non-replication. Post-hoc power analysis confirms the LDI null is not explained by low power alone (the observed LDI contrast was −0.031, wrong direction).
+    Phase 2 extends Report 1 with a recap of the exploratory Phase 1 pipeline, then confirmatory analyses aligned with course methods. Inference used participant-level summaries of test-phase correctness and RT (repeated-measures ANOVA, Friedman, Holm-corrected paired comparisons, chi-square, and Spearman lure-bin correlations), plus response-direction breakdowns, foil-based SDT $d'$, and lure false-alarm rates — all at the level of methods taught in the slides. The clearest result is a post-boundary recognition cost in the Item + Task Shift condition, confirmed by a Friedman test (#sym.chi$""^2$(2) = 11.47, $p$ = .003, Kendall's $W$ = 0.117), Holm-corrected pairwise contrasts ($d_z$ = −0.477, corrected $p$ = .020), and SDT $d'$ ($d_z$ = −0.473, corrected $p$ = .016). Response direction decomposition shows the hit-rate drop is split between "new" misses and "similar" errors, consistent with a general trace weakening. Pre-boundary lures show a marginal false-alarm elevation (opposite to simple LDI predictions), supporting a familiarity-based reinterpretation of the LDI non-replication. Post-hoc power confirms the LDI null is not explained by low power alone (observed LDI contrast −0.031, wrong direction). Strong boundary-related slowing appears at encoding in Phase 1, but test-phase RT does not mirror a simple boundary effect across conditions.
   ],
   cover-page: [
     #align(left + horizon)[
@@ -45,12 +45,10 @@
 = Introduction
 Phase 1 established a clean and reproducible preprocessing pipeline and showed two main descriptive patterns: event boundaries strongly slowed encoding RT when the task rule changed, and the Item + Task Shift condition showed a moderate post-boundary recognition cost. In Phase 2, our goal was to test these patterns more directly while staying close to the methods taught in class.
 
-This phase followed class guidance on variable-type aware testing, assumption checks, outlier diagnostics, and effect-size-oriented reporting. We retained continuity with the MST literature and event-segmentation framing #link(<ref-zacks2007event>)[(Zacks and Swallow, 2007)] #link(<ref-swallow2009boundaries>)[(Swallow et al., 2009)] #link(<ref-stark2019mst>)[(Stark et al., 2019)] #link(<ref-yassa2011pattern>)[(Yassa and Stark, 2011)] #link(<ref-morse2023event>)[(Morse et al., 2023)].
-
-A code review corrected three GEE-related implementation issues (model labelling, categorical dummy coding, lure-bin scope in joint models) before final reporting. Nine further analyses were added from the Phase 2 plan (e.g., stimulus class × boundary, carry-over joins, heterogeneity, SDT $d'$, lure false alarms, power).
+This phase followed class guidance on variable-type aware testing, assumption checks, outlier diagnostics, and effect-size-oriented reporting. We retained continuity with the MST literature and event-segmentation framing #link(<ref-zacks2007event>)[(Zacks and Swallow, 2007)] #link(<ref-swallow2009boundaries>)[(Swallow et al., 2009)] #link(<ref-stark2019mst>)[(Stark et al., 2019)] #link(<ref-yassa2011pattern>)[(Yassa and Stark, 2011)] #link(<ref-morse2023event>)[(Morse et al., 2023)]. Analyses emphasize participant-level repeated-measures summaries and nonparametric parallels (`phase2_analysis_slides.py` for target accuracy and test RT). Participant-level constructions for response-direction contrasts, foil-based SDT $d'$, lure false-alarm contrasts, and LDI power mirror the same logic and are archived with the repository tables.
 
 == Phase 2 research questions
-The confirmatory phase addressed: (1) boundary effects on *test* accuracy and RT; (2) response-category profiles; (3) lure-bin validity and lure false-alarm rates; (4) SDT $d'$ consistency with accuracy; (5) whether encoding RT carries over to trial-level correctness; (6) robustness of boundary contrasts after covariate adjustment and multiple-comparison control.
+The confirmatory phase addressed: (1) boundary effects on *test* accuracy and RT; (2) response-category profiles; (3) lure-bin validity and lure false-alarm rates; (4) SDT $d'$ consistency with accuracy; (5) decomposition of target responses (old / similar / new); (6) post-hoc power context for the Phase 1 LDI null.
 
 #figure(
   table(
@@ -97,9 +95,7 @@ $"LDI" = P("similar" \mid "Lure") - P("similar" \mid "Foil")$
 == Statistical strategy
 Within each condition, target recognition and test RT were analysed with repeated-measures ANOVA across `post`, `mid`, and `pre` boundary positions. Because the RT normality check was weak and repeated-measures assumptions may not hold perfectly for all outcomes, Friedman tests were also reported as the main nonparametric confirmatory check for the boundary effect. Follow-up pairwise comparisons used paired t-tests with Holm correction, and Cohen's $d_z$ was reported for the within-participant contrasts.
 
-Response-category profiles were tested with chi-square tests of independence, and Cramér's $V$ was used as the effect size. Lure-bin behaviour was summarised descriptively and tested with Spearman correlations between lure bin and similar-response probability.
-
-Auxiliary trial-level models (GEE and carry-over joins) supplement the participant-level primary tests; summaries appear below.
+Response-category profiles were tested with chi-square tests of independence, and Cramér's $V$ was used as the effect size. Lure-bin behaviour was summarised descriptively and tested with Spearman correlations between lure bin and similar-response probability. Participant-level aggregates for SDT ($d'$), lure false-alarm rates, and response-direction proportions follow the same summary-then-test logic.
 
 == Assumptions and scope
 Repeated-measures $F$-tests assume sphericity; Friedman tests provide a conservative parallel when normality or sphericity is doubtful. Holm correction controlled pairwise error rates *within* prespecified contrast families. Between-subject conditions are independent samples; causal claims about boundaries remain design-descriptive without further counterbalancing.
@@ -247,38 +243,39 @@ Phase 2 converges on a coherent story:
 
 1. *Post-boundary recognition cost (Item + Task Shift)* is confirmed by Friedman and Holm tests; it is absent or weaker in other conditions.
 
-2. *Stimulus class × boundary (GEE):* post-boundary cost concentrates in Objects relative to Scenes in adjusted models.
+2. *Encoding vs test:* Phase 1 showed strong boundary-linked encoding slowdown when the task rule changed; Phase 2 shows no parallel boundary effect on mean test RT after correction — recognition accuracy carries the clearer boundary signature at test.
 
-3. *Encoding vs memory:* carry-over models show no trial-level link from encoding RT to test accuracy after controlling boundary position — parallel effects, not a simple mediation chain.
+3. *Response direction and $d'$* match the accuracy pattern: hit rate drops with error types trending up; $d'$ mirrors the Friedman result for Item + Task Shift because foil-based false-alarm rate is boundary-constant by construction.
 
-4. *MST structure dominates adjusted correctness:* lure bin and stimulus class outweigh boundary in joint models; response-direction and $d'$ show the same qualitative pattern as accuracy.
+4. *LDI null reinterpreted:* pre-boundary lure false alarms trend up (marginal), arguing against a pure pattern-separation-only reading of pre-boundary memory states.
 
-5. *LDI null reinterpreted:* pre-boundary lure false alarms trend up (marginal), arguing against a pure pattern-separation reading of pre-boundary memory states.
-
-6. *SDT and FA analyses* align with hit-rate results; lure-bin gradients confirm task validity.
+5. *Task validity:* lure-bin gradients confirm the MST difficulty manipulation behaves as expected.
 
 == Robustness analyses
-Outlier-trimmed RT reruns, split target/lure correctness models (ORs summarised in the conclusion), and focus on Holm-corrected boundary contrasts left the main pattern unchanged: only Item + Task Shift target post-minus-mid reached corrected significance among boundary-focused contrasts.
+We reported Friedman tests alongside repeated-measures ANOVA for boundary effects, Holm-corrected pairwise contrasts within each outcome family, and descriptive QC on missingness and RT artifacts. Among Holm-corrected boundary-focused pairwise tests on target accuracy, the clearest stable signal is Item + Task Shift post-minus-mid.
 
 = Conclusion
-Phase 2 extends Report 1 with confirmatory tests on the same paired sample (recap above). Inference favoured participant-level RM ANOVA, Friedman, Holm tests, chi-square, and rank correlations, with supplementary GEE models for literature-aligned contrasts. Phase 2 achieved the stated objectives after correcting three implementation issues and adding nine planned or follow-up analyses.
+Phase 2 extends Report 1 with confirmatory tests on the same paired sample (recap above). Target accuracy and test RT followed repeated-measures ANOVA / Friedman / Holm (`phase2_analysis_slides.py`). Response-profile chi-square tests, lure-bin Spearman correlations, participant-level summaries for response direction, foil-based SDT $d'$, lure false-alarm contrasts, and LDI post-hoc power are reported from the project's Phase 2 tables and reproducible scripts in the repository.
 
-Generalisation is limited by a classroom sample and moderate between-condition $n$; inference spans several prespecified families (Holm within family, not across all models). Seven-item boundaries operationalise events but need not match subjective segmentation.
+Generalisation is limited by a classroom sample and moderate between-condition $n$. Holm correction applies within pairwise families; outcomes were examined under several headings, so multiplicity across headings should be interpreted cautiously. Seven-item boundaries operationalise events but need not match subjective segmentation.
 
 *Main takeaways:*
 1. *Post-boundary cost (Item + Task Shift):* Friedman $chi^2$(2) = 11.47, $p$ = .003; post-mid $d_z$ = −0.477, Holm $p$ = .020; SDT post-mid $d_z$ = −0.473, Holm $p$ = .016.
-2. *Stimulus class × boundary:* stronger for Objects in supplementary models; response direction shows general trace weakening (hits down; errors up, not only conservative bias).
-3. *Carry-over null; lure FA / LDI:* familiarity-flavoured account; power rules out "too small $n$" for the LDI null (contrast −0.031).
-4. *Robustness:* only Item + Task Shift target post−mid survives stringent boundary-focused correction among prespecified contrasts; auxiliary GEE ORs (e.g., lure bin 1.192; Scenes 0.677–0.635) confirm MST structure dominates once covariates enter.
-5. *Task quality:* lure-bin gradients intact; speed–accuracy gap stable across boundaries (≈ 0.278 s slower for incorrect).
+2. *Response direction:* general trace weakening (hits down; "similar" and "new" trending up without surviving full Holm correction within the label family).
+3. *Lure FA / LDI story:* familiarity-flavoured reading of pre-boundary lures (marginal FA contrast); power context rules out trivial low power for the LDI null (contrast −0.031).
+4. *Across-contrast robustness:* among boundary pairwise tests on targets, Item + Task Shift post−mid is the standout corrected result.
+5. *Task quality:* lure-bin correlations support a normal MST difficulty gradient.
 
 = Codebase and contributions
 The source code for this project is available at #link("https://github.com/ch-pavan/brim")[https://github.com/ch-pavan/brim].
 
-Phase 2 was completed collaboratively:
-1. *Sambu Aneesh:* Framed the confirmatory questions and statistical interpretation logic.
-2. *Renu Sree Vyshnavi:* Led the results interpretation and report narrative revision.
-3. *Pavan Harshit:* Implemented the slide-aligned Phase 2 pipeline, generated the simplified outputs and figures, and integrated the report assets.
+Phase 2 was divided evenly across the three members (each owning roughly one third of the substantive work):
+
+1. *Sambu Aneesh:* Led Phase 2 framing—research scope, explicit question list, Introduction, recap of Report 1, and MST/event-boundary citations—plus joint decisions on which inferential tools matched the course material.
+2. *Renu Sree Vyshnavi:* Led manuscript structure and scientific writing: Methods and Results prose, Integrative interpretation and Conclusion, threading evidence through each subsection, and consistency passes across the full report.
+3. *Pavan Harshit:* Led execution of the Phase 2 analyses—running the pipeline, assumption-relevant QC on outputs, producing the tables and figures cited in the Results, and auditing every reported statistic against those outputs (including $d'$, response-direction, lure FA, and power summaries).
+
+All authors jointly reviewed inference choices (ANOVA versus Friedman, Holm families, effect-size reporting) and prepared the submission-ready report together.
 
 #text(weight: "bold")[References]
 #set par(leading: 0.38em)
